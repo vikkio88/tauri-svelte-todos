@@ -1,6 +1,9 @@
+use serde_json::{from_value, json};
 use std::{cmp::Ordering, time::SystemTime};
-use tauri::async_runtime::Mutex;
-use tauri::State;
+
+use tauri::{async_runtime::Mutex, AppHandle};
+use tauri::{Manager, RunEvent, State};
+use tauri_plugin_store::StoreExt;
 
 mod models;
 use models::{AppState, Todo};
@@ -61,14 +64,34 @@ async fn remove_todo(idx: i32, state: State<'_, AppState>) -> Result<Vec<Todo>, 
 }
 
 #[tauri::command]
-async fn boot(state: State<'_, AppState>) -> Result<Vec<Todo>, ()> {
-    let todos = state.todos.lock().await;
-    Ok(todos.to_vec())
+async fn boot(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<Todo>, ()> {
+    let store = match app.store("db.json") {
+        Ok(s) => s,
+        Err(_) => {
+            let s = app.store("db.json").map_err(|_| ())?;
+            s.set("todos", json!([]));
+            s.save().map_err(|_| ())?;
+            s
+        }
+    };
+
+    let raw = store.get("todos");
+
+    let todos: Vec<Todo> = match raw {
+        Some(value) => from_value(value).unwrap_or_default(),
+        None => Vec::new(),
+    };
+
+    let mut guard = state.todos.lock().await;
+    *guard = todos.clone();
+
+    Ok(todos)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(AppState {
             todos: Mutex::new(Vec::new()),
         })
@@ -79,7 +102,28 @@ pub fn run() {
             remove_todo,
             update_todo
         ])
-        //https://github.com/tauri-apps/tauri/discussions/10531#discussioncomment-10274882
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(move |app, _event| match &_event {
+            RunEvent::ExitRequested { .. } => {
+                println!("exiting window...");
+                if let (Some(state), Ok(store)) =
+                    (app.try_state::<AppState>(), app.store("db.json"))
+                {
+                    tauri::async_runtime::block_on(async {
+                        let guard = state.todos.lock().await;
+                        store.set("todos", json!(*guard));
+
+                        if let Err(e) = store.save() {
+                            eprintln!("Failed to save store: {e:?}");
+                        } else {
+                            println!("Todos saved successfully");
+                        }
+                    });
+                } else {
+                    eprintln!("Could not access app state or store");
+                }
+            }
+            _ => (),
+        });
 }
