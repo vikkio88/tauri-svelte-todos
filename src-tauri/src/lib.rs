@@ -1,8 +1,4 @@
-use serde_json::{from_value, json};
-use std::{cmp::Ordering, time::SystemTime};
-
-use tauri::{async_runtime::Mutex, AppHandle};
-use tauri::{Manager, RunEvent, State};
+use tauri::RunEvent;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -25,13 +21,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:mydatabase.db", migrations)
+                .add_migrations("sqlite:db.sqlite", migrations)
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        .run(move |app, _event| match &_event {
+        .run(move |_, _event| match &_event {
             RunEvent::ExitRequested { .. } => {
                 println!("exiting window...");
             }
