@@ -30,8 +30,8 @@
   {:then _}
     <div class="f1 f c w100">
       <ul class="w100 f c">
-        {#each todosStore.todos as todo, idx (todo.description)}
-          <TodoLi {todo} {idx} {onRemove} />
+        {#each todosStore.todos as todo (todo.id)}
+          <TodoLi {todo} {onRemove} />
         {/each}
       </ul>
     </div>
