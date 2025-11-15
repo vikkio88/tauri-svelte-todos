@@ -5,19 +5,18 @@
 
   type Props = {
     todo: Todo;
-    idx: number;
     onRemove: (idx: number) => void;
   };
 
-  let { todo, onRemove, idx }: Props = $props();
+  let { todo, onRemove }: Props = $props();
   let done = $state(todo.done);
 
   function remove() {
-    onRemove(idx);
+    onRemove(todo.id);
   }
 
   async function mark() {
-    const result = await update(idx, done);
+    const result = await update(todo.id, done);
     todosStore.replace(result);
   }
 </script>
