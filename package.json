@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "compile": "bun tauri build",
     "dev:app": "bun run tauri dev",
     "dev": "vite",
     "build": "vite build",
