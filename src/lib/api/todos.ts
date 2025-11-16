@@ -1,5 +1,25 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Todo } from "../models/Todo";
+import {
+  DummyDriver,
+  Kysely,
+  SqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
+} from "kysely";
+import type { Todo, TodoTable } from "../models/Todo";
+
+type Db = {
+  todos: TodoTable;
+};
+
+const q = new Kysely<Db>({
+  dialect: {
+    createAdapter: () => new SqliteAdapter(),
+    createDriver: () => new DummyDriver(),
+    createIntrospector: (db) => new SqliteIntrospector(db),
+    createQueryCompiler: () => new SqliteQueryCompiler(),
+  },
+});
 
 const db = async () => await Database.load("sqlite:db.sqlite");
 
@@ -16,7 +36,12 @@ function mapRow(row: any): Todo {
 export async function getAll(): Promise<Todo[]> {
   const d = await db();
   const rows: any[] = await d.select(
-    "SELECT * FROM todos ORDER BY done ASC, updated DESC",
+    q
+      .selectFrom("todos")
+      .selectAll()
+      .orderBy("done", "asc")
+      .orderBy("updated", "desc")
+      .compile().sql,
   );
 
   return rows.map(mapRow);
@@ -25,28 +50,32 @@ export async function getAll(): Promise<Todo[]> {
 export async function add(description: string): Promise<Todo[]> {
   const now = Date.now();
   const d = await db();
-  await d.execute(
-    "INSERT INTO todos (description, done, created, updated) VALUES (?, ?, ?, ?)",
-    [description, 0, now, now],
-  );
+
+  const query = q
+    .insertInto("todos")
+    .values({ description, done: 0, updated: now, created: now })
+    .compile();
+  await d.execute(query.sql, [...query.parameters]);
 
   return getAll();
 }
 
 export async function remove(id: number): Promise<Todo[]> {
   const d = await db();
-  await d.execute("DELETE FROM todos WHERE id = ?", [id]);
+  const query = q.deleteFrom("todos").where("id", "=", id).compile();
+  await d.execute(query.sql, [...query.parameters]);
   return getAll();
 }
 
 export async function update(id: number, done: boolean): Promise<Todo[]> {
   const now = Date.now();
   const d = await db();
-  await d.execute("UPDATE todos SET done = ?, updated = ? WHERE id = ?", [
-    done ? 1 : 0,
-    now,
-    id,
-  ]);
+  const query = q
+    .updateTable("todos")
+    .set({ done: Number(done), updated: now })
+    .where("id", "=", id)
+    .compile();
+  await d.execute(query.sql, [...query.parameters]);
 
   return getAll();
 }
