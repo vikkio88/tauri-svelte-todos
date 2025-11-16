@@ -16,10 +16,9 @@ function mapRow(row: any): Todo {
 export async function getAll(): Promise<Todo[]> {
   const d = await db();
   const rows: any[] = await d.select(
-    "SELECT * FROM todos ORDER BY created DESC",
+    "SELECT * FROM todos ORDER BY done ASC, updated DESC",
   );
 
-  console.log({ rows });
   return rows.map(mapRow);
 }
 
