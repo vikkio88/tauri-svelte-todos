@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "compile": "bun tauri build",
     "dev:app": "bun run tauri dev",
     "dev": "vite",
     "build": "vite build",
@@ -14,7 +15,9 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-store": "~2"
+    "@tauri-apps/plugin-sql": "~2",
+    "@tauri-apps/plugin-store": "~2",
+    "kysely": "^0.28.8"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
